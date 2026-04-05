@@ -33,7 +33,7 @@ setup_cookies()
 
 def extra_args():
     """Extra args for every yt-dlp call: JS runtime + cookies."""
-    args = ["--js-runtimes", "node"]
+    args = ["--js-runtimes", "node", "--remote-components", "ejs:github"]
     if COOKIES_FILE.exists() and COOKIES_FILE.stat().st_size > 0:
         args += ["--cookies", str(COOKIES_FILE)]
     return args
