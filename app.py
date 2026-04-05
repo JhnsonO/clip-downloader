@@ -18,30 +18,28 @@ TMP = Path(tempfile.gettempdir()) / "clipdl"
 TMP.mkdir(exist_ok=True)
 
 # ── Cookies setup ──────────────────────────────────────────────────────────────
-# Write cookies from env var to a temp file once on startup.
-# Set YOUTUBE_COOKIES env var in Railway with the contents of your cookies.txt
-
 COOKIES_FILE = TMP / "cookies.txt"
 
 def setup_cookies():
     cookies = os.environ.get("YOUTUBE_COOKIES", "").strip()
     if cookies:
         COOKIES_FILE.write_text(cookies)
-        print(f"[cookies] Written {len(cookies)} bytes to {COOKIES_FILE}")
+        print(f"[cookies] Written {len(cookies)} bytes")
     else:
-        print("[cookies] No YOUTUBE_COOKIES env var set — may hit bot detection")
+        print("[cookies] No YOUTUBE_COOKIES env var — may hit bot detection")
 
 setup_cookies()
 
 
-def cookie_args():
-    """Return yt-dlp cookie arguments if cookies file exists and is non-empty."""
+def extra_args():
+    """Extra args for every yt-dlp call: JS runtime + cookies."""
+    args = ["--js-runtimes", "nodejs"]
     if COOKIES_FILE.exists() and COOKIES_FILE.stat().st_size > 0:
-        return ["--cookies", str(COOKIES_FILE)]
-    return []
+        args += ["--cookies", str(COOKIES_FILE)]
+    return args
 
 
-# ── yt-dlp helpers ─────────────────────────────────────────────────────────────
+# ── yt-dlp ─────────────────────────────────────────────────────────────────────
 
 def yt_dlp():
     for candidate in ["yt-dlp", "yt_dlp"]:
@@ -76,12 +74,12 @@ def get_clip_info(url):
     if not ytdlp:
         raise RuntimeError("yt-dlp not available on server")
     r = subprocess.run(
-        [ytdlp, "--dump-json", "--no-playlist"] + cookie_args() + [url],
-        capture_output=True, text=True, timeout=60,
+        [ytdlp, "--dump-json", "--no-playlist"] + extra_args() + [url],
+        capture_output=True, text=True, timeout=90,
         encoding="utf-8", errors="replace"
     )
     if r.returncode != 0:
-        raise RuntimeError(r.stderr.strip() or "yt-dlp failed to fetch info")
+        raise RuntimeError(r.stderr.strip() or "yt-dlp failed")
     for line in r.stdout.splitlines():
         line = line.strip()
         if line.startswith("{"):
@@ -117,7 +115,7 @@ def run_download(job_id, url):
         log(f"Timestamps: {start_time}s → {end_time}s")
 
         ytdlp = yt_dlp()
-        cookies = cookie_args()
+        ea = extra_args()
 
         if start_time is None or end_time is None:
             log("No timestamps — downloading full resolution.")
@@ -125,14 +123,15 @@ def run_download(job_id, url):
             out = job_dir / f"{safe_name}.mp4"
             r = subprocess.run(
                 [ytdlp, "--no-playlist", "-f", "bestvideo+bestaudio/best",
-                 "--merge-output-format", "mp4"] + cookies + ["-o", str(out), url],
+                 "--merge-output-format", "mp4"] + ea + ["-o", str(out), url],
                 capture_output=True, text=True, encoding="utf-8", errors="replace",
                 timeout=600
             )
             log(r.stdout[-1000:])
             if r.returncode != 0:
                 log(r.stderr[-500:])
-                set_status("error", error="Download failed"); return
+                set_status("error", error="Download failed")
+                return
             set_status("done", filename=out.name, path=str(out))
             return
 
@@ -141,18 +140,20 @@ def run_download(job_id, url):
         tmp_video = job_dir / "full.%(ext)s"
         r = subprocess.run(
             [ytdlp, "--no-playlist", "-f", "bestvideo+bestaudio/best",
-             "--merge-output-format", "mkv"] + cookies + ["-o", str(tmp_video), url],
+             "--merge-output-format", "mkv"] + ea + ["-o", str(tmp_video), url],
             capture_output=True, text=True, encoding="utf-8", errors="replace",
             timeout=600
         )
         log(r.stdout[-1000:])
         if r.returncode != 0:
             log(r.stderr[-500:])
-            set_status("error", error="Download failed"); return
+            set_status("error", error="Download failed")
+            return
 
         files = list(job_dir.glob("full.*"))
         if not files:
-            set_status("error", error="Downloaded file missing"); return
+            set_status("error", error="Downloaded file missing")
+            return
         full_path = str(files[0])
 
         set_status("trimming")
@@ -175,7 +176,8 @@ def run_download(job_id, url):
             )
             if r2.returncode != 0:
                 log(r2.stderr[-500:])
-                set_status("error", error="Trim failed"); return
+                set_status("error", error="Trim failed")
+                return
 
         log("Done!")
         set_status("done", filename=out.name, path=str(out))
