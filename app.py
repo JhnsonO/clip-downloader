@@ -11,13 +11,34 @@ from flask import Flask, request, jsonify, send_file, render_template
 
 app = Flask(__name__)
 
-# Jobs stored in memory: { job_id: { status, filename, error, path } }
 JOBS = {}
 JOBS_LOCK = threading.Lock()
 
-# Temp dir for downloads (cleaned up after serving)
 TMP = Path(tempfile.gettempdir()) / "clipdl"
 TMP.mkdir(exist_ok=True)
+
+# ── Cookies setup ──────────────────────────────────────────────────────────────
+# Write cookies from env var to a temp file once on startup.
+# Set YOUTUBE_COOKIES env var in Railway with the contents of your cookies.txt
+
+COOKIES_FILE = TMP / "cookies.txt"
+
+def setup_cookies():
+    cookies = os.environ.get("YOUTUBE_COOKIES", "").strip()
+    if cookies:
+        COOKIES_FILE.write_text(cookies)
+        print(f"[cookies] Written {len(cookies)} bytes to {COOKIES_FILE}")
+    else:
+        print("[cookies] No YOUTUBE_COOKIES env var set — may hit bot detection")
+
+setup_cookies()
+
+
+def cookie_args():
+    """Return yt-dlp cookie arguments if cookies file exists and is non-empty."""
+    if COOKIES_FILE.exists() and COOKIES_FILE.stat().st_size > 0:
+        return ["--cookies", str(COOKIES_FILE)]
+    return []
 
 
 # ── yt-dlp helpers ─────────────────────────────────────────────────────────────
@@ -55,7 +76,7 @@ def get_clip_info(url):
     if not ytdlp:
         raise RuntimeError("yt-dlp not available on server")
     r = subprocess.run(
-        [ytdlp, "--dump-json", "--no-playlist", url],
+        [ytdlp, "--dump-json", "--no-playlist"] + cookie_args() + [url],
         capture_output=True, text=True, timeout=60,
         encoding="utf-8", errors="replace"
     )
@@ -67,6 +88,8 @@ def get_clip_info(url):
             return json.loads(line)
     raise RuntimeError("No metadata returned by yt-dlp")
 
+
+# ── Download job ───────────────────────────────────────────────────────────────
 
 def run_download(job_id, url):
     job_dir = TMP / job_id
@@ -94,16 +117,17 @@ def run_download(job_id, url):
         log(f"Timestamps: {start_time}s → {end_time}s")
 
         ytdlp = yt_dlp()
+        cookies = cookie_args()
 
-        # No timestamps — download directly as mp4
         if start_time is None or end_time is None:
-            log("No clip timestamps — downloading full resolution.")
+            log("No timestamps — downloading full resolution.")
             set_status("downloading")
             out = job_dir / f"{safe_name}.mp4"
             r = subprocess.run(
                 [ytdlp, "--no-playlist", "-f", "bestvideo+bestaudio/best",
-                 "--merge-output-format", "mp4", "-o", str(out), url],
-                capture_output=True, text=True, encoding="utf-8", errors="replace"
+                 "--merge-output-format", "mp4"] + cookies + ["-o", str(out), url],
+                capture_output=True, text=True, encoding="utf-8", errors="replace",
+                timeout=600
             )
             log(r.stdout[-1000:])
             if r.returncode != 0:
@@ -112,13 +136,12 @@ def run_download(job_id, url):
             set_status("done", filename=out.name, path=str(out))
             return
 
-        # Download full video then trim
         set_status("downloading")
         log("Downloading full video...")
         tmp_video = job_dir / "full.%(ext)s"
         r = subprocess.run(
             [ytdlp, "--no-playlist", "-f", "bestvideo+bestaudio/best",
-             "--merge-output-format", "mkv", "-o", str(tmp_video), url],
+             "--merge-output-format", "mkv"] + cookies + ["-o", str(tmp_video), url],
             capture_output=True, text=True, encoding="utf-8", errors="replace",
             timeout=600
         )
@@ -137,7 +160,6 @@ def run_download(job_id, url):
         out = job_dir / f"{safe_name}.mp4"
         log(f"Trimming {duration:.1f}s clip...")
 
-        # Stream copy
         r1 = subprocess.run(
             ["ffmpeg", "-y", "-ss", str(start_time), "-i", full_path,
              "-t", str(duration), "-c", "copy", str(out)],
@@ -232,19 +254,16 @@ def api_file(job_id):
     name = job.get("filename", "clip.mp4")
     if not path or not Path(path).exists():
         return jsonify({"error": "File not found"}), 404
-    # Stream the file, then clean up after
     def cleanup():
         try:
-            shutil.rmtree(TMP / job_id, ignore_errors=True)
+            shutil.rmtree(str(TMP / job_id), ignore_errors=True)
         except Exception:
             pass
-    response = send_file(path, as_attachment=True, download_name=name,
-                         mimetype="video/mp4")
-    # Schedule cleanup (rough — good enough for an internal tool)
+    response = send_file(path, as_attachment=True, download_name=name, mimetype="video/mp4")
     threading.Timer(30, cleanup).start()
     return response
 
 
 if __name__ == "__main__":
-    port = int(os.environ.get("PORT", 8765))
+    port = int(os.environ.get("PORT", 8000))
     app.run(host="0.0.0.0", port=port)
