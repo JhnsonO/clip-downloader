@@ -7,7 +7,7 @@ import threading
 import tempfile
 import shutil
 from pathlib import Path
-from flask import Flask, request, jsonify, send_file, render_template_string
+from flask import Flask, request, jsonify, send_file, render_template
 
 app = Flask(__name__)
 
@@ -166,9 +166,14 @@ def run_download(job_id, url):
 
 # ── Routes ─────────────────────────────────────────────────────────────────────
 
+@app.route("/health")
+def health():
+    return "ok", 200
+
+
 @app.route("/")
 def index():
-    return send_file("templates/index.html")
+    return render_template("index.html")
 
 
 @app.route("/api/info", methods=["POST"])
