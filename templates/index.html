@@ -1,0 +1,453 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover">
+<meta name="theme-color" content="#0a0a0a">
+<meta name="apple-mobile-web-app-capable" content="yes">
+<title>Clip ↓</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link href="https://fonts.googleapis.com/css2?family=Syne:wght@400;700;800&family=DM+Mono:wght@400;500&display=swap" rel="stylesheet">
+<style>
+  *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+
+  :root {
+    --bg:      #0a0a0a;
+    --surface: #141414;
+    --border:  #252525;
+    --accent:  #c8f135;
+    --text:    #f5f5f5;
+    --muted:   #666;
+    --red:     #ff5c5c;
+    --green:   #5cffa0;
+    --r:       14px;
+  }
+
+  html, body {
+    height: 100%;
+    background: var(--bg);
+    color: var(--text);
+    font-family: 'DM Mono', monospace;
+    -webkit-font-smoothing: antialiased;
+  }
+
+  body {
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    min-height: 100dvh;
+    padding: env(safe-area-inset-top, 0) env(safe-area-inset-right, 0)
+             env(safe-area-inset-bottom, 0) env(safe-area-inset-left, 0);
+  }
+
+  /* Animated background grid */
+  body::before {
+    content: '';
+    position: fixed; inset: 0; z-index: 0;
+    background-image:
+      linear-gradient(var(--border) 1px, transparent 1px),
+      linear-gradient(90deg, var(--border) 1px, transparent 1px);
+    background-size: 40px 40px;
+    mask-image: radial-gradient(ellipse 80% 60% at 50% 0%, black 20%, transparent 80%);
+    opacity: .35;
+  }
+
+  .wrap {
+    position: relative; z-index: 1;
+    width: 100%; max-width: 480px;
+    padding: 48px 20px 60px;
+    display: flex; flex-direction: column; gap: 16px;
+  }
+
+  /* ── Header ── */
+  .header { margin-bottom: 8px; }
+  .logo {
+    font-family: 'Syne', sans-serif;
+    font-weight: 800;
+    font-size: clamp(2.4rem, 10vw, 3.4rem);
+    line-height: 1;
+    letter-spacing: -.03em;
+  }
+  .logo span { color: var(--accent); }
+  .tagline {
+    font-size: 11px; color: var(--muted);
+    letter-spacing: .08em; text-transform: uppercase;
+    margin-top: 8px;
+  }
+
+  /* ── Cards ── */
+  .card {
+    background: var(--surface);
+    border: 1px solid var(--border);
+    border-radius: var(--r);
+    padding: 20px;
+  }
+
+  /* ── Input ── */
+  .input-group { display: flex; flex-direction: column; gap: 10px; }
+  textarea {
+    width: 100%;
+    background: var(--bg);
+    border: 1px solid var(--border);
+    border-radius: 10px;
+    color: var(--text);
+    font-family: 'DM Mono', monospace;
+    font-size: 13px;
+    padding: 14px;
+    resize: none;
+    height: 72px;
+    outline: none;
+    transition: border-color .2s;
+    line-height: 1.5;
+  }
+  textarea:focus { border-color: var(--accent); }
+  textarea::placeholder { color: var(--muted); }
+
+  .btn {
+    width: 100%;
+    background: var(--accent);
+    border: none; border-radius: 10px;
+    color: #0a0a0a;
+    font-family: 'Syne', sans-serif;
+    font-weight: 700;
+    font-size: 15px;
+    letter-spacing: .02em;
+    padding: 16px;
+    cursor: pointer;
+    transition: opacity .15s, transform .1s;
+    -webkit-tap-highlight-color: transparent;
+  }
+  .btn:active { opacity: .8; transform: scale(.98); }
+  .btn:disabled { opacity: .3; cursor: not-allowed; transform: none; }
+  .btn.ghost {
+    background: transparent;
+    border: 1px solid var(--border);
+    color: var(--muted);
+    font-family: 'DM Mono', monospace;
+    font-size: 13px;
+    font-weight: 400;
+    padding: 13px;
+  }
+
+  /* ── Preview ── */
+  .preview { display: none; }
+  .preview.show { display: block; }
+
+  .thumb-wrap {
+    position: relative;
+    width: calc(100% + 40px); margin: -20px -20px 16px;
+    border-radius: var(--r) var(--r) 0 0;
+    overflow: hidden;
+    aspect-ratio: 16/9;
+    background: #111;
+  }
+  .thumb-wrap img {
+    width: 100%; height: 100%; object-fit: cover; display: block;
+  }
+  .clip-pill {
+    position: absolute; bottom: 10px; left: 10px;
+    background: rgba(0,0,0,.75); backdrop-filter: blur(8px);
+    border: 1px solid rgba(200,241,53,.3);
+    color: var(--accent);
+    font-size: 11px; padding: 5px 10px; border-radius: 99px;
+    display: flex; align-items: center; gap: 5px;
+  }
+  .clip-pill::before { content: '✂'; font-size: 10px; }
+
+  .meta-title {
+    font-family: 'Syne', sans-serif;
+    font-weight: 700; font-size: 1rem;
+    line-height: 1.3; margin-bottom: 4px;
+  }
+  .meta-sub { font-size: 11px; color: var(--muted); }
+
+  /* ── Status ── */
+  .status-card { display: none; }
+  .status-card.show { display: block; }
+
+  .status-label {
+    font-size: 10px; text-transform: uppercase; letter-spacing: .12em;
+    color: var(--muted); margin-bottom: 8px;
+  }
+
+  .status-msg {
+    font-family: 'Syne', sans-serif;
+    font-weight: 700; font-size: 1.1rem;
+    min-height: 28px; margin-bottom: 14px;
+  }
+  .status-msg.ok    { color: var(--green); }
+  .status-msg.error { color: var(--red); }
+
+  .bar-track {
+    height: 3px; background: var(--border);
+    border-radius: 99px; overflow: hidden; margin-bottom: 16px;
+  }
+  .bar-fill {
+    height: 100%; background: var(--accent);
+    border-radius: 99px; width: 0;
+    transition: width .5s ease;
+  }
+  .bar-fill.pulse {
+    width: 45% !important;
+    animation: pulse-bar 1.6s ease-in-out infinite;
+  }
+
+  .log {
+    background: var(--bg); border: 1px solid var(--border);
+    border-radius: 8px; padding: 10px 12px;
+    font-size: 11px; color: #444; line-height: 1.6;
+    max-height: 100px; overflow-y: auto;
+    white-space: pre-wrap; word-break: break-all;
+    display: none;
+  }
+  .log.show { display: block; }
+
+  .dl-btn {
+    display: none;
+    width: 100%;
+    background: var(--green);
+    border: none; border-radius: 10px;
+    color: #0a0a0a;
+    font-family: 'Syne', sans-serif;
+    font-weight: 700; font-size: 15px;
+    padding: 16px; cursor: pointer; margin-top: 14px;
+    text-decoration: none; text-align: center;
+    -webkit-tap-highlight-color: transparent;
+    transition: opacity .15s;
+  }
+  .dl-btn:active { opacity: .8; }
+  .dl-btn.show { display: block; }
+
+  /* ── Footer ── */
+  .footer {
+    text-align: center; font-size: 11px; color: #2a2a2a;
+    margin-top: 8px; line-height: 1.8;
+  }
+
+  @keyframes pulse-bar {
+    0%, 100% { margin-left: 0; }
+    50%       { margin-left: 55%; }
+  }
+
+  @keyframes fadeUp {
+    from { opacity: 0; transform: translateY(12px); }
+    to   { opacity: 1; transform: translateY(0); }
+  }
+  .card { animation: fadeUp .3s ease both; }
+  .preview.show, .status-card.show { animation: fadeUp .3s ease both; }
+</style>
+</head>
+<body>
+<div class="wrap">
+
+  <div class="header">
+    <div class="logo">Clip<span>↓</span></div>
+    <div class="tagline">YouTube clip downloader</div>
+  </div>
+
+  <!-- Input -->
+  <div class="card">
+    <div class="input-group">
+      <textarea id="urlInput"
+        placeholder="Paste YouTube clip link here…&#10;youtube.com/clip/Ugkx…"
+        autocomplete="off" autocorrect="off" spellcheck="false"></textarea>
+      <button class="btn" id="previewBtn" onclick="fetchInfo()">Preview clip</button>
+    </div>
+  </div>
+
+  <!-- Preview -->
+  <div class="card preview" id="preview">
+    <div class="thumb-wrap" id="thumbWrap" style="display:none">
+      <img id="thumb" src="" alt="">
+      <div class="clip-pill" id="clipPill"></div>
+    </div>
+    <div class="meta-title" id="metaTitle"></div>
+    <div class="meta-sub" id="metaSub"></div>
+    <br>
+    <button class="btn" id="downloadBtn" onclick="startDownload()">⬇ Download clip</button>
+  </div>
+
+  <!-- Status -->
+  <div class="card status-card" id="statusCard">
+    <div class="status-label">Status</div>
+    <div class="status-msg" id="statusMsg">Starting…</div>
+    <div class="bar-track"><div class="bar-fill" id="barFill"></div></div>
+    <div class="log" id="logBox"></div>
+    <a class="dl-btn" id="dlBtn" href="#" download>Save to device</a>
+  </div>
+
+  <div class="footer">Paste · Preview · Download<br>Works on Android &amp; iOS</div>
+
+</div>
+<script>
+let currentUrl = '';
+let jobId      = null;
+let pollTimer  = null;
+
+// ── Fetch info ────────────────────────────────────────────────────────────────
+async function fetchInfo() {
+  const url = document.getElementById('urlInput').value.trim();
+  if (!url) return;
+  currentUrl = url;
+
+  setBtn('previewBtn', '…', true);
+  hideStatus();
+  document.getElementById('preview').classList.remove('show');
+
+  try {
+    const r = await post('/api/info', { url });
+    if (!r.ok) throw new Error(r.error);
+    showPreview(r);
+  } catch (e) {
+    showError(e.message);
+  } finally {
+    setBtn('previewBtn', 'Preview clip', false);
+  }
+}
+
+function showPreview(d) {
+  const tw = document.getElementById('thumbWrap');
+  if (d.thumbnail) {
+    document.getElementById('thumb').src = d.thumbnail;
+    tw.style.display = '';
+  } else {
+    tw.style.display = 'none';
+  }
+  document.getElementById('clipPill').textContent =
+    d.clip_duration ? fmtDur(d.clip_duration) + ' clip' : 'clip';
+  document.getElementById('metaTitle').textContent = d.title || 'Untitled clip';
+  document.getElementById('metaSub').textContent   = d.channel || '';
+  document.getElementById('preview').classList.add('show');
+}
+
+// ── Download ──────────────────────────────────────────────────────────────────
+async function startDownload() {
+  setBtn('downloadBtn', '…', true);
+  hideStatus();
+
+  try {
+    const r = await post('/api/download', { url: currentUrl });
+    if (!r.ok) throw new Error(r.error);
+    jobId = r.id;
+    showStatusCard();
+    poll();
+  } catch (e) {
+    showError(e.message);
+    setBtn('downloadBtn', '⬇ Download clip', false);
+  }
+}
+
+function poll() {
+  clearInterval(pollTimer);
+  pollTimer = setInterval(async () => {
+    try {
+      const r = await fetch(`/api/poll/${jobId}`);
+      const d = await r.json();
+      updateStatus(d);
+    } catch (_) {}
+  }, 1200);
+}
+
+const STAGES = {
+  starting:      { msg: 'Starting up…',              pct: 5,   pulse: true  },
+  fetching_info: { msg: 'Fetching clip info…',        pct: 15,  pulse: true  },
+  downloading:   { msg: 'Downloading video…',         pct: 40,  pulse: true  },
+  trimming:      { msg: 'Trimming to clip…',          pct: 82,  pulse: true  },
+  done:          { msg: 'Ready to save!',             pct: 100, pulse: false },
+  error:         { msg: 'Something went wrong.',      pct: 0,   pulse: false },
+};
+
+function updateStatus({ status, log, filename, error }) {
+  const s = STAGES[status] || { msg: status, pct: 0, pulse: true };
+  const msgEl = document.getElementById('statusMsg');
+  const bar   = document.getElementById('barFill');
+  const logEl = document.getElementById('logBox');
+  const dlBtn = document.getElementById('dlBtn');
+
+  msgEl.textContent = s.msg;
+  msgEl.className   = 'status-msg' +
+    (status === 'done' ? ' ok' : status === 'error' ? ' error' : '');
+
+  if (s.pulse) {
+    bar.className = 'bar-fill pulse';
+    bar.style.width = '';
+  } else {
+    bar.className = 'bar-fill';
+    bar.style.width = s.pct + '%';
+    bar.style.background = status === 'error' ? 'var(--red)' : 'var(--accent)';
+  }
+
+  if (log && log.trim()) {
+    logEl.textContent = log;
+    logEl.classList.add('show');
+    logEl.scrollTop = logEl.scrollHeight;
+  }
+
+  if (status === 'done' && filename) {
+    clearInterval(pollTimer);
+    dlBtn.href = `/api/file/${jobId}`;
+    dlBtn.download = filename;
+    dlBtn.classList.add('show');
+    setBtn('downloadBtn', '⬇ Download clip', false);
+  }
+
+  if (status === 'error') {
+    clearInterval(pollTimer);
+    if (error) msgEl.textContent = error;
+    setBtn('downloadBtn', '⬇ Try again', false);
+  }
+}
+
+// ── Helpers ───────────────────────────────────────────────────────────────────
+function showStatusCard() {
+  const c = document.getElementById('statusCard');
+  c.classList.add('show');
+  document.getElementById('logBox').classList.remove('show');
+  document.getElementById('dlBtn').classList.remove('show');
+  document.getElementById('barFill').style.width = '0';
+}
+
+function hideStatus() {
+  clearInterval(pollTimer);
+  document.getElementById('statusCard').classList.remove('show');
+}
+
+function showError(msg) {
+  showStatusCard();
+  const msgEl = document.getElementById('statusMsg');
+  msgEl.textContent = msg;
+  msgEl.className = 'status-msg error';
+  document.getElementById('barFill').className = 'bar-fill';
+  document.getElementById('barFill').style.cssText = 'width:0;background:var(--red)';
+}
+
+function setBtn(id, label, disabled) {
+  const b = document.getElementById(id);
+  b.textContent = label;
+  b.disabled    = disabled;
+}
+
+function fmtDur(s) {
+  const m = Math.floor(s / 60), sec = Math.round(s % 60);
+  return m > 0 ? `${m}m ${sec}s` : `${sec}s`;
+}
+
+async function post(url, data) {
+  const r = await fetch(url, {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify(data),
+  });
+  return r.json();
+}
+
+// Paste on focus
+document.getElementById('urlInput').addEventListener('paste', () => {
+  setTimeout(() => {
+    const v = document.getElementById('urlInput').value.trim();
+    if (v.includes('youtube.com/clip') || v.includes('youtu.be')) fetchInfo();
+  }, 50);
+});
+</script>
+</body>
+</html>
