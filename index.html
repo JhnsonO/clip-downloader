@@ -98,8 +98,8 @@ body::before { content: ''; position: fixed; inset: 0; z-index: 0;
 .tl-labels { display: flex; justify-content: space-between; font-size: 10px; color: var(--muted); margin-bottom: 6px; }
 .tl-outer { position: relative; width: 100%; overflow: hidden; border-radius: 6px;
   background: var(--border); touch-action: none; user-select: none; }
-.tl-strip { display: flex; height: 56px; position: relative; }
-.tl-strip img { height: 100%; width: auto; display: block; flex-shrink: 0;
+.tl-strip { display: flex; height: 56px; position: relative; width: 100%; }
+.tl-strip img, .tl-strip canvas { height: 100%; display: block; flex-shrink: 0;
   pointer-events: none; -webkit-user-drag: none; }
 .tl-strip-placeholder { width: 100%; height: 56px; background: var(--border);
   display: flex; align-items: center; justify-content: center;
@@ -114,21 +114,24 @@ body::before { content: ''; position: fixed; inset: 0; z-index: 0;
 /* Selection window */
 .tl-sel { position: absolute; top: 0; bottom: 0; z-index: 2;
   border-top: 3px solid var(--accent); border-bottom: 3px solid var(--accent);
-  cursor: grab; }
+  cursor: grab; touch-action: none; }
 .tl-sel:active { cursor: grabbing; }
 .tl-sel-time { position: absolute; top: -20px; left: 50%; transform: translateX(-50%);
   font-size: 10px; font-family: 'DM Mono', monospace; color: var(--accent);
   white-space: nowrap; pointer-events: none;
-  opacity: 0; transition: opacity .15s; }
-.tl-sel.dragging .tl-sel-time { opacity: 1; }
+  opacity: 1; transition: opacity .15s; }
+.tl-sel.dragging { box-shadow: 0 0 12px rgba(200,241,53,.3); }
+.light .tl-sel.dragging { box-shadow: 0 0 12px rgba(90,158,0,.3); }
 
 /* Left/right edge handles */
 .tl-edge { position: absolute; top: 0; bottom: 0; width: 16px; z-index: 3;
   background: var(--accent); cursor: ew-resize; display: flex;
   align-items: center; justify-content: center;
-  -webkit-tap-highlight-color: transparent; }
+  -webkit-tap-highlight-color: transparent; touch-action: none; }
 .tl-edge-left { left: 0; border-radius: 4px 0 0 4px; }
 .tl-edge-right { right: 0; border-radius: 0 4px 4px 0; }
+.tl-edge::before { content: ''; position: absolute; top: 0; bottom: 0; width: 44px;
+  left: 50%; transform: translateX(-50%); }
 .tl-edge::after { content: ''; width: 3px; height: 16px;
   border-left: 1.5px solid rgba(0,0,0,.4); border-right: 1.5px solid rgba(0,0,0,.4); }
 .tl-edge-label { position: absolute; bottom: -20px; left: 50%; transform: translateX(-50%);
@@ -415,6 +418,7 @@ body::before { content: ''; position: fixed; inset: 0; z-index: 0;
 
 <div class="toast" id="toast"></div>
 
+<script src="https://www.youtube.com/iframe_api"></script>
 <script>
 const API = '';
 let currentVideoId = '';
@@ -425,8 +429,16 @@ let selectedQ = '1080';
 let selectedA = 'original';
 let selectedFmt = 'mp4';
 let videoTitle = '';
+let storyboardCache = [];
+let ytPlayer = null;
+let ytPlayerReady = false;
+let ytApiReady = false;
 const jobs = {};
 const jobStart = {};
+
+window.onYouTubeIframeAPIReady = function() {
+  ytApiReady = true;
+};
 
 // ── Theme ─────────────────────────────────────────────────────────────────────
 function toggleTheme() {
@@ -479,6 +491,38 @@ function extractVideoId(url) {
   return null;
 }
 
+function waitForYouTubeApi(timeout = 8000) {
+  if (ytApiReady && window.YT && YT.Player) return Promise.resolve();
+  return new Promise((resolve, reject) => {
+    const started = Date.now();
+    const timer = setInterval(() => {
+      if (ytApiReady && window.YT && YT.Player) {
+        clearInterval(timer);
+        resolve();
+      } else if (Date.now() - started > timeout) {
+        clearInterval(timer);
+        reject(new Error('YouTube player failed to load'));
+      }
+    }, 50);
+  });
+}
+
+function seekPreview(seconds) {
+  if (!ytPlayerReady || !ytPlayer || typeof ytPlayer.seekTo !== 'function') return;
+  try {
+    ytPlayer.seekTo(Math.max(0, seconds), true);
+    if (typeof ytPlayer.pauseVideo === 'function') ytPlayer.pauseVideo();
+  } catch (e) {}
+}
+
+function destroyPlayer() {
+  if (ytPlayer && typeof ytPlayer.destroy === 'function') {
+    try { ytPlayer.destroy(); } catch (e) {}
+  }
+  ytPlayer = null;
+  ytPlayerReady = false;
+}
+
 // ── Load video ────────────────────────────────────────────────────────────────
 async function loadVideo() {
   const url = document.getElementById('urlInput').value.trim();
@@ -487,11 +531,26 @@ async function loadVideo() {
 
   currentVideoId = vid;
   const frame = document.getElementById('playerFrame');
-  frame.src = `https://www.youtube.com/embed/${vid}?enablejsapi=1`;
   frame.style.display = 'block';
   document.getElementById('playerPlaceholder').style.display = 'none';
 
-  // Fetch duration from API
+  try {
+    await waitForYouTubeApi();
+    destroyPlayer();
+    ytPlayer = new YT.Player('playerFrame', {
+      videoId: vid,
+      playerVars: { enablejsapi: 1, modestbranding: 1, rel: 0 },
+      events: {
+        onReady: () => {
+          ytPlayerReady = true;
+          try { ytPlayer.pauseVideo(); } catch (e) {}
+        }
+      }
+    });
+  } catch (e) {
+    showToast('Could not load YouTube player');
+  }
+
   const btn = document.getElementById('loadBtn');
   btn.textContent = '...';
   btn.disabled = true;
@@ -509,11 +568,13 @@ async function loadVideo() {
         document.getElementById('nameInput').value = videoTitle;
       }
       startSec = 0;
-      endSec = Math.min(10, totalDuration);
+      endSec = totalDuration;
+      storyboardCache = d.storyboards || [];
       document.getElementById('timelineSection').style.display = '';
       document.getElementById('optionsCard').style.display = '';
       updateUI();
-      loadStoryboard(d.storyboards || []);
+      loadStoryboard(storyboardCache);
+      seekPreview(0);
     }
   } catch(e) {}
   btn.textContent = 'Load';
@@ -538,7 +599,7 @@ function updateUI() {
   tlDimR.style.width = (w - ep) + 'px';
   document.getElementById('edgeLabelLeft').textContent  = fmt(startSec);
   document.getElementById('edgeLabelRight').textContent = fmt(endSec);
-  document.getElementById('tlSelTime').textContent = fmt(startSec) + ' \u2014 ' + fmt(endSec);
+  document.getElementById('tlSelTime').textContent = fmt(startSec) + ' — ' + fmt(endSec);
   document.getElementById('startM').value = Math.floor(startSec / 60);
   document.getElementById('startS').value = startSec % 60;
   document.getElementById('endM').value   = Math.floor(endSec / 60);
@@ -572,9 +633,38 @@ function secFromX(clientX) {
 function clampSelection() {
   if (startSec < 0) startSec = 0;
   if (endSec > totalDuration) endSec = totalDuration;
-  if (endSec - startSec > 600) endSec = startSec + 600;
-  if (endSec <= startSec) endSec = startSec + 1;
+  if (endSec <= startSec) endSec = Math.min(totalDuration, startSec + 1);
+  if (startSec >= totalDuration) startSec = Math.max(0, totalDuration - 1);
 }
+
+function moveNearestHandleTo(clientX) {
+  const sec = secFromX(clientX);
+  const startDist = Math.abs(sec - startSec);
+  const endDist = Math.abs(sec - endSec);
+  if (startDist <= endDist) {
+    startSec = Math.max(0, Math.min(sec, endSec - 1));
+    clampSelection();
+    updateUI();
+    seekPreview(startSec);
+  } else {
+    endSec = Math.min(totalDuration, Math.max(sec, startSec + 1));
+    clampSelection();
+    updateUI();
+    seekPreview(endSec);
+  }
+}
+
+tlOuter.addEventListener('mousedown', (e) => {
+  if (tlSel.contains(e.target)) return;
+  moveNearestHandleTo(e.clientX);
+});
+tlOuter.addEventListener('touchstart', (e) => {
+  if (tlSel.contains(e.target)) return;
+  const touch = e.touches && e.touches[0];
+  if (!touch) return;
+  e.preventDefault();
+  moveNearestHandleTo(touch.clientX);
+}, { passive:false });
 
 // Drag left edge
 (function() {
@@ -584,7 +674,7 @@ function clampSelection() {
     if (!dragging) return;
     const cx = e.touches ? e.touches[0].clientX : e.clientX;
     startSec = Math.max(0, Math.min(secFromX(cx), endSec - 1));
-    clampSelection(); updateUI();
+    clampSelection(); updateUI(); seekPreview(startSec);
   };
   const end = () => { dragging = false; tlSel.classList.remove('dragging'); };
   edgeLeft.addEventListener('mousedown', s);
@@ -603,7 +693,7 @@ function clampSelection() {
     if (!dragging) return;
     const cx = e.touches ? e.touches[0].clientX : e.clientX;
     endSec = Math.min(totalDuration, Math.max(secFromX(cx), startSec + 1));
-    clampSelection(); updateUI();
+    clampSelection(); updateUI(); seekPreview(endSec);
   };
   const end = () => { dragging = false; tlSel.classList.remove('dragging'); };
   edgeRight.addEventListener('mousedown', s);
@@ -633,7 +723,7 @@ function clampSelection() {
     const p = Math.max(0, Math.min(1 - dur/totalDuration, (cx - dragOffset - rect.left) / rect.width));
     startSec = Math.round(p * totalDuration);
     endSec = startSec + dur;
-    clampSelection(); updateUI();
+    clampSelection(); updateUI(); seekPreview(startSec);
   };
   const end = () => { dragging = false; tlSel.classList.remove('dragging'); };
   tlSel.addEventListener('mousedown', s);
@@ -645,58 +735,129 @@ function clampSelection() {
 })();
 
 // Storyboard loading
+function renderFallbackStrip() {
+  const strip = document.getElementById('tlStrip');
+  const placeholder = document.getElementById('tlPlaceholder');
+  const outerW = tlOuter.offsetWidth || 1;
+  const thumbH = 56;
+  const count = Math.max(6, Math.round(outerW / 80));
+  const baseW = Math.floor(outerW / count);
+  let used = 0;
+  strip.innerHTML = '';
+  for (let i = 0; i < count; i++) {
+    const width = i === count - 1 ? outerW - used : baseW;
+    used += width;
+    const img = document.createElement('img');
+    img.src = `https://img.youtube.com/vi/${currentVideoId}/mqdefault.jpg`;
+    img.alt = '';
+    img.style.width = width + 'px';
+    img.style.height = thumbH + 'px';
+    img.style.objectFit = 'cover';
+    strip.appendChild(img);
+  }
+  if (placeholder) placeholder.remove();
+}
+
+function renderStoryboardFrames(img, sb) {
+  const strip = document.getElementById('tlStrip');
+  const placeholder = document.getElementById('tlPlaceholder');
+  const outerW = tlOuter.offsetWidth || 1;
+  const thumbH = 56;
+  const cols = Math.max(1, Number(sb.cols) || 1);
+  const rows = Math.max(1, Number(sb.rows) || 1);
+  const totalFrames = Math.max(1, Number(sb.count) || (cols * rows));
+
+  const metaFrameW = Number(sb.width) || 0;
+  const metaFrameH = Number(sb.height) || 0;
+  const derivedFrameW = img.naturalWidth / cols;
+  const derivedFrameH = img.naturalHeight / rows;
+  const frameW = (metaFrameW > 0 && (metaFrameW * cols) <= img.naturalWidth + cols) ? metaFrameW : derivedFrameW;
+  const frameH = (metaFrameH > 0 && (metaFrameH * rows) <= img.naturalHeight + rows) ? metaFrameH : derivedFrameH;
+
+  if (!frameW || !frameH) {
+    renderFallbackStrip();
+    return;
+  }
+
+  const aspect = frameW / frameH;
+  const desiredCount = Math.max(6, Math.round(outerW / Math.max(1, thumbH * aspect)));
+  const visibleCount = Math.min(totalFrames, desiredCount);
+  const frameIndexes = [];
+  if (visibleCount === 1) {
+    frameIndexes.push(0);
+  } else {
+    for (let i = 0; i < visibleCount; i++) {
+      frameIndexes.push(Math.min(totalFrames - 1, Math.round((i / (visibleCount - 1)) * (totalFrames - 1))));
+    }
+  }
+
+  const baseW = Math.floor(outerW / frameIndexes.length);
+  let used = 0;
+  strip.innerHTML = '';
+
+  frameIndexes.forEach((frameIndex, idx) => {
+    const width = idx === frameIndexes.length - 1 ? outerW - used : baseW;
+    used += width;
+    const srcCol = frameIndex % cols;
+    const srcRow = Math.floor(frameIndex / cols);
+    const canvas = document.createElement('canvas');
+    canvas.width = Math.max(1, width * 2);
+    canvas.height = thumbH * 2;
+    canvas.style.width = width + 'px';
+    canvas.style.height = thumbH + 'px';
+    canvas.style.flex = `0 0 ${width}px`;
+    const ctx = canvas.getContext('2d');
+    ctx.drawImage(
+      img,
+      srcCol * frameW,
+      srcRow * frameH,
+      frameW,
+      frameH,
+      0,
+      0,
+      canvas.width,
+      canvas.height
+    );
+    strip.appendChild(canvas);
+  });
+
+  if (placeholder) placeholder.remove();
+}
+
 async function loadStoryboard(storyboards) {
   const strip = document.getElementById('tlStrip');
   const placeholder = document.getElementById('tlPlaceholder');
-  const outerW = tlOuter.offsetWidth;
+  strip.innerHTML = '';
+  if (placeholder) strip.appendChild(placeholder);
 
   if (!storyboards || !storyboards.length) {
-    strip.innerHTML = '';
-    const n = Math.max(5, Math.floor(outerW / 40));
-    for (let i = 0; i < n; i++) {
-      const d = document.createElement('div');
-      d.style.cssText = 'height:56px;flex:1;background:var(--border);border-right:1px solid var(--bg);';
-      strip.appendChild(d);
-    }
+    renderFallbackStrip();
     return;
   }
 
   const sb = storyboards[storyboards.length - 1];
+  if (!sb || !sb.url) {
+    renderFallbackStrip();
+    return;
+  }
+
   const proxyUrl = API + '/api/storyboard-proxy?url=' + encodeURIComponent(sb.url);
   const img = new Image();
-  img.crossOrigin = 'anonymous';
   img.onload = function() {
-    strip.innerHTML = '';
-    const cols = sb.cols || 10;
-    const rows = sb.rows || 10;
-    const frameW = img.naturalWidth / cols;
-    const frameH = img.naturalHeight / rows;
-    const totalFrames = sb.count || (cols * rows);
-    const thumbH = 56;
-    const thumbW = (frameW / frameH) * thumbH;
-    const numToShow = Math.max(6, Math.round(outerW / thumbW));
-    const step = Math.max(1, Math.floor(totalFrames / numToShow));
-    const actualW = outerW / Math.ceil(totalFrames / step);
-
-    for (let i = 0; i < totalFrames; i += step) {
-      const col = i % cols;
-      const row = Math.floor(i / cols);
-      const c = document.createElement('canvas');
-      c.width  = Math.ceil(actualW * 2);
-      c.height = thumbH * 2;
-      c.style.width  = actualW + 'px';
-      c.style.height = thumbH + 'px';
-      c.style.flexShrink = '0';
-      const ctx = c.getContext('2d');
-      ctx.drawImage(img, col * frameW, row * frameH, frameW, frameH, 0, 0, c.width, c.height);
-      strip.appendChild(c);
-    }
+    renderStoryboardFrames(img, sb);
   };
-  img.onerror = function() { placeholder.textContent = 'Could not load storyboard'; };
+  img.onerror = function() {
+    renderFallbackStrip();
+  };
   img.src = proxyUrl;
 }
 
-window.addEventListener('resize', () => { if (currentVideoId) updateUI(); });
+window.addEventListener('resize', () => {
+  if (currentVideoId) {
+    updateUI();
+    loadStoryboard(storyboardCache);
+  }
+});
 
 function onManualTime() {
   const sm = parseInt(document.getElementById('startM').value)||0;
@@ -705,9 +866,11 @@ function onManualTime() {
   const es = parseInt(document.getElementById('endS').value)||0;
   startSec = Math.min(sm*60+ss, totalDuration);
   endSec   = Math.min(em*60+es, totalDuration);
-  if (endSec <= startSec) endSec = startSec + 1;
-  if (endSec - startSec > 600) endSec = startSec + 600;
+  if (endSec <= startSec) endSec = Math.min(totalDuration, startSec + 1);
+  clampSelection();
   updateUI();
+  const activeId = document.activeElement ? document.activeElement.id : '';
+  seekPreview(activeId === 'endM' || activeId === 'endS' ? endSec : startSec);
 }
 
 // ── Auto-paste ────────────────────────────────────────────────────────────────

@@ -566,8 +566,6 @@ class Handler(http.server.BaseHTTPRequestHandler):
 
             if end_time <= start_time:
                 self.send_json({"error": "End time must be after start time"}, 400); return
-            if (end_time - start_time) > 600:
-                self.send_json({"error": "Max trim duration is 10 minutes"}, 400); return
 
             tmp = tempfile.gettempdir()
             sp  = os.path.join(tmp, f"ytclip_{job_id}.status")
