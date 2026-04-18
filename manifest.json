@@ -1,0 +1,16 @@
+{
+  "name": "Clip Downloader",
+  "short_name": "Clip↓",
+  "description": "Download YouTube clips at full quality",
+  "start_url": "/",
+  "display": "standalone",
+  "background_color": "#0a0a0a",
+  "theme_color": "#0a0a0a",
+  "icons": [
+    {
+      "src": "/icon.png",
+      "sizes": "192x192",
+      "type": "image/png"
+    }
+  ]
+}
