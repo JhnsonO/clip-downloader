@@ -196,7 +196,6 @@ def _encode_h264(ff, input_path, output_path, quality="1080", start=None, durati
     if duration is not None:
         cmd += ["-t", str(duration)]
 
-    # Build video filter chain
     vf_parts = [f"scale=-2:min({height}\\,ih)"]
     if aspect and aspect != "original" and aspect in ASPECT_FILTERS:
         vf_parts.append(ASPECT_FILTERS[aspect])
@@ -219,8 +218,6 @@ def _encode_h264(ff, input_path, output_path, quality="1080", start=None, durati
     print(f"[ffmpeg] encoding at {bitrate} bitrate, aspect={aspect}")
     return subprocess.run(cmd, capture_output=True, text=True)
 
-
-# -- Download + trim ------------------------------------------------------------
 
 def download_clip(url, output_dir, status_path, log_path, start_time, end_time,
                   quality="1080", aspect="original", fmt="mp4", custom_name=None):
@@ -257,7 +254,6 @@ def download_clip(url, output_dir, status_path, log_path, start_time, end_time,
 
         section_arg = f"*{start_time}-{end_time}"
 
-        # ── MP3 (audio only) ──────────────────────────────────────────────
         if fmt == "mp3":
             status_path.write_text("downloading")
             log("Downloading audio segment...")
@@ -289,7 +285,6 @@ def download_clip(url, output_dir, status_path, log_path, start_time, end_time,
                 status_path.write_text("error")
             return
 
-        # ── MP4 (video) ───────────────────────────────────────────────────
         status_path.write_text("downloading")
         log("Downloading video segment...")
 
@@ -324,7 +319,6 @@ def download_clip(url, output_dir, status_path, log_path, start_time, end_time,
                 return
             raw_path = str(files[0])
 
-            # ── Encode / aspect ratio ─────────────────────────────────────
             out_path = output_dir / f"{safe_name}.mp4"
             ff = ffmpeg_exe()
             if not ff:
@@ -336,18 +330,14 @@ def download_clip(url, output_dir, status_path, log_path, start_time, end_time,
 
             status_path.write_text("trimming")
 
-            # Log source info
-            probe = subprocess.run([ff, "-i", raw_path],
-                                   capture_output=True, text=True)
+            probe = subprocess.run([ff, "-i", raw_path], capture_output=True, text=True)
             log("=== SOURCE ===")
             for line in (probe.stderr + probe.stdout).splitlines():
                 if any(k in line.lower() for k in ["video:", "audio:", "stream", "duration"]):
                     log(f"  {line.strip()}")
 
-            needs_encode = (aspect and aspect != "original") or True
             log(f"=== ENCODING ===")
-            r1 = _encode_h264(ff, raw_path, str(out_path), quality,
-                              start=None, duration=None, aspect=aspect)
+            r1 = _encode_h264(ff, raw_path, str(out_path), quality, start=None, duration=None, aspect=aspect)
             log(f"ffmpeg exit: {r1.returncode}")
             if r1.stderr:
                 log(f"stderr: {r1.stderr[-800:]}")
@@ -372,11 +362,10 @@ def download_clip(url, output_dir, status_path, log_path, start_time, end_time,
             f.write(f"\nFATAL: {e}\n")
         status_path.write_text("error")
 
-# -- HTTP handler ---------------------------------------------------------------
-
 class Handler(http.server.BaseHTTPRequestHandler):
 
-    def log_message(self, *_): pass
+    def log_message(self, *_):
+        pass
 
     def send_json(self, data, status=200):
         body = json.dumps(data).encode()
@@ -432,7 +421,8 @@ class Handler(http.server.BaseHTTPRequestHandler):
             qs = urllib.parse.urlparse(self.path).query
             sb_url = urllib.parse.parse_qs(qs).get("url", [""])[0]
             if not sb_url:
-                self.send_json({"error": "No url param"}, 400); return
+                self.send_json({"error": "No url param"}, 400)
+                return
             try:
                 req = urllib.request.Request(sb_url, headers={"User-Agent": "Mozilla/5.0"})
                 with urllib.request.urlopen(req, timeout=15) as resp:
@@ -450,39 +440,40 @@ class Handler(http.server.BaseHTTPRequestHandler):
 
         elif path == "/api/status":
             cmd = yt_dlp_cmd()
-            yt_ok  = _probe(cmd + ["--version"])
+            yt_ok = _probe(cmd + ["--version"])
             yt_ver = ""
             if yt_ok:
                 r = subprocess.run(cmd + ["--version"], capture_output=True, text=True)
                 yt_ver = r.stdout.strip().splitlines()[0]
-            ff     = ffmpeg_exe()
-            ff_ok  = ff is not None
+            ff = ffmpeg_exe()
+            ff_ok = ff is not None
             ff_ver = ""
             if ff_ok:
                 r = subprocess.run([ff, "-version"], capture_output=True, text=True)
                 ff_ver = r.stdout.splitlines()[0] if r.stdout else ""
             self.send_json({
-                "yt_dlp":      {"installed": yt_ok, "version": yt_ver},
-                "ffmpeg":      {"installed": ff_ok, "version": ff_ver, "path": ff or ""},
+                "yt_dlp": {"installed": yt_ok, "version": yt_ver},
+                "ffmpeg": {"installed": ff_ok, "version": ff_ver, "path": ff or ""},
                 "download_dir": str(DOWNLOAD_DIR),
             })
 
         elif path.startswith("/api/file/"):
             job_id = path.split("/api/file/")[1]
-            tmp    = tempfile.gettempdir()
-            sp     = Path(os.path.join(tmp, f"ytclip_{job_id}.status"))
+            tmp = tempfile.gettempdir()
+            sp = Path(os.path.join(tmp, f"ytclip_{job_id}.status"))
             status = sp.read_text(encoding="utf-8").strip() if sp.exists() else ""
-            fpath  = None
-            fname  = "clip.mp4"
+            fpath = None
+            fname = "clip.mp4"
             if status.startswith("done:"):
                 parts = status.split(":", 2)
                 fname = parts[1] if len(parts) > 1 else fname
                 fpath = parts[2] if len(parts) > 2 else None
             if not fpath or not Path(fpath).exists():
-                self.send_json({"error": "File not ready"}, 404); return
+                self.send_json({"error": "File not ready"}, 404)
+                return
             fsize = Path(fpath).stat().st_size
-            safe  = fname.encode("ascii", "ignore").decode() or "clip.mp4"
-            mime  = "audio/mpeg" if safe.endswith(".mp3") else "video/mp4"
+            safe = fname.encode("ascii", "ignore").decode() or "clip.mp4"
+            mime = "audio/mpeg" if safe.endswith(".mp3") else "video/mp4"
             self.send_response(200)
             self.send_header("Content-Type", mime)
             self.send_header("Content-Length", str(fsize))
@@ -512,64 +503,67 @@ class Handler(http.server.BaseHTTPRequestHandler):
         try:
             data = json.loads(self.rfile.read(length))
         except Exception:
-            self.send_json({"error": "Bad JSON"}, 400); return
+            self.send_json({"error": "Bad JSON"}, 400)
+            return
 
         if self.path == "/api/info":
             url = data.get("url", "").strip()
             if not url:
-                self.send_json({"error": "No URL"}, 400); return
+                self.send_json({"error": "No URL"}, 400)
+                return
             try:
                 info = get_video_info(url)
-                # Extract storyboard/thumbnail sprite sheets
                 storyboards = []
                 for t in (info.get("thumbnails") or []):
                     tid = t.get("id", "")
-                    # yt-dlp storyboard entries have IDs like "sb0", "sb1", "sb2"
                     if tid.startswith("sb"):
                         storyboards.append({
-                            "url":    t.get("url", ""),
-                            "width":  t.get("width"),
+                            "url": t.get("url", ""),
+                            "width": t.get("width"),
                             "height": t.get("height"),
-                            "cols":   t.get("columns"),
-                            "rows":   t.get("rows"),
-                            "count":  t.get("n_frames") or t.get("frame_count"),
+                            "cols": t.get("columns"),
+                            "rows": t.get("rows"),
+                            "count": t.get("n_frames") or t.get("frame_count"),
                         })
                 self.send_json({
-                    "ok":          True,
-                    "title":       info.get("fulltitle") or info.get("title", ""),
-                    "channel":     info.get("uploader", ""),
-                    "duration":    info.get("duration"),
-                    "thumbnail":   info.get("thumbnail", ""),
+                    "ok": True,
+                    "title": info.get("fulltitle") or info.get("title", ""),
+                    "channel": info.get("uploader", ""),
+                    "duration": info.get("duration"),
+                    "thumbnail": info.get("thumbnail", ""),
                     "storyboards": storyboards,
                 })
             except Exception as e:
                 self.send_json({"error": str(e)}, 400)
 
         elif self.path == "/api/download":
-            url        = data.get("url", "").strip()
-            job_id     = data.get("id", "job")
+            url = data.get("url", "").strip()
+            job_id = data.get("id", "job")
             start_time = data.get("start", 0)
-            end_time   = data.get("end", 10)
-            quality    = data.get("quality", "1080")
-            aspect     = data.get("aspect", "original")
-            fmt        = data.get("format", "mp4")
-            filename   = data.get("filename", "").strip()
+            end_time = data.get("end", 10)
+            quality = data.get("quality", "1080")
+            aspect = data.get("aspect", "original")
+            fmt = data.get("format", "mp4")
+            filename = data.get("filename", "").strip()
 
             if not url:
-                self.send_json({"error": "No URL"}, 400); return
+                self.send_json({"error": "No URL"}, 400)
+                return
 
             try:
                 start_time = float(start_time)
-                end_time   = float(end_time)
+                end_time = float(end_time)
             except (TypeError, ValueError):
-                self.send_json({"error": "Invalid start/end time"}, 400); return
+                self.send_json({"error": "Invalid start/end time"}, 400)
+                return
 
             if end_time <= start_time:
-                self.send_json({"error": "End time must be after start time"}, 400); return
+                self.send_json({"error": "End time must be after start time"}, 400)
+                return
 
             tmp = tempfile.gettempdir()
-            sp  = os.path.join(tmp, f"ytclip_{job_id}.status")
-            lp  = os.path.join(tmp, f"ytclip_{job_id}.log")
+            sp = os.path.join(tmp, f"ytclip_{job_id}.status")
+            lp = os.path.join(tmp, f"ytclip_{job_id}.log")
             Path(sp).write_text("starting")
             Path(lp).write_text("")
 
@@ -580,39 +574,44 @@ class Handler(http.server.BaseHTTPRequestHandler):
                 with _semaphore:
                     with open(lp, "a", encoding="utf-8") as f:
                         f.write("Slot acquired - starting download...\n")
-                    download_clip(url, str(DOWNLOAD_DIR), sp, lp,
-                                  start_time, end_time,
-                                  quality=quality, aspect=aspect, fmt=fmt,
-                                  custom_name=filename or None)
+                    download_clip(
+                        url,
+                        str(DOWNLOAD_DIR),
+                        sp,
+                        lp,
+                        start_time,
+                        end_time,
+                        quality=quality,
+                        aspect=aspect,
+                        fmt=fmt,
+                        custom_name=filename or None,
+                    )
 
             threading.Thread(
                 target=_run,
-                args=(job_id, url, sp, lp, start_time, end_time,
-                      quality, aspect, fmt, filename),
-                daemon=True
+                args=(job_id, url, sp, lp, start_time, end_time, quality, aspect, fmt, filename),
+                daemon=True,
             ).start()
             self.send_json({"ok": True, "id": job_id})
 
         elif self.path == "/api/poll":
             job_id = data.get("id", "job")
-            tmp    = tempfile.gettempdir()
-            sp     = Path(os.path.join(tmp, f"ytclip_{job_id}.status"))
-            lp     = Path(os.path.join(tmp, f"ytclip_{job_id}.log"))
+            tmp = tempfile.gettempdir()
+            sp = Path(os.path.join(tmp, f"ytclip_{job_id}.status"))
+            lp = Path(os.path.join(tmp, f"ytclip_{job_id}.log"))
             status = sp.read_text(encoding="utf-8").strip() if sp.exists() else "unknown"
-            tail   = lp.read_text(encoding="utf-8")[-5000:] if lp.exists() else ""
-            fname  = None
-            fpath  = None
+            tail = lp.read_text(encoding="utf-8")[-5000:] if lp.exists() else ""
+            fname = None
+            fpath = None
             if status.startswith("done:"):
-                parts  = status.split(":", 2)
-                fname  = parts[1] if len(parts) > 1 else None
-                fpath  = parts[2] if len(parts) > 2 else None
+                parts = status.split(":", 2)
+                fname = parts[1] if len(parts) > 1 else None
+                fpath = parts[2] if len(parts) > 2 else None
                 status = "done"
             self.send_json({"status": status, "log": tail, "filename": fname, "filepath": fpath})
 
         else:
             self.send_json({"error": "Not found"}, 404)
-
-# -- Entry point ----------------------------------------------------------------
 
 if __name__ == "__main__":
     sys.stdout.reconfigure(encoding="utf-8", errors="replace")
