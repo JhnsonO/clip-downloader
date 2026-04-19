@@ -66,7 +66,6 @@ body::before { content: ''; position: fixed; inset: 0; z-index: 0; background-im
 .tool-btn.on { background: rgba(200,241,53,.1); border-color: var(--accent); color: var(--accent); }
 .light .tool-btn.on { background: rgba(90,158,0,.08); }
 .tool-grid { display: grid; grid-template-columns: repeat(4, minmax(0,1fr)); gap: 8px; margin-top: 12px; }
-.tool-grid.two { grid-template-columns: repeat(2, minmax(0,1fr)); }
 .tool-grid.three { grid-template-columns: repeat(3, minmax(0,1fr)); }
 .timeline-section { margin-top: 16px; }
 .tl-labels { display: flex; justify-content: space-between; font-size: 10px; color: var(--muted); margin-bottom: 28px; }
@@ -171,7 +170,7 @@ body::before { content: ''; position: fixed; inset: 0; z-index: 0; background-im
 @keyframes fadeUp { from { opacity:0; transform:translateY(8px); } to { opacity:1; transform:translateY(0); } }
 @keyframes pulse { 0%,100% { opacity:1; } 50% { opacity:.3; } }
 @keyframes barslide { 0% { margin-left:0; width:35%; } 50% { margin-left:65%; } 100% { margin-left:0; } }
-@media (max-width: 540px) { .tool-grid, .tool-grid.two, .tool-grid.three { grid-template-columns: repeat(2, minmax(0,1fr)); } .player-tools { display: grid; grid-template-columns: 1fr 1fr; } }
+@media (max-width: 540px) { .tool-grid, .tool-grid.three { grid-template-columns: repeat(2, minmax(0,1fr)); } .player-tools { display: grid; grid-template-columns: 1fr 1fr; } }
 </style>
 </head>
 <body>
@@ -200,7 +199,7 @@ body::before { content: ''; position: fixed; inset: 0; z-index: 0; background-im
       <span class="player-time-badge" id="playerTimeBadge">Current: 0:00</span>
       <button class="tool-btn" onclick="setBoundaryFromPlayer('start')">Set Start</button>
       <button class="tool-btn" onclick="setBoundaryFromPlayer('end')">Set End</button>
-      <button class="tool-btn" onclick="createClipAroundCurrent(15)">Clip ±15s</button>
+      <button class="tool-btn" onclick="createClipAroundCurrent(15)">15s clip</button>
     </div>
 
     <div class="tool-grid" id="nudgeGrid" style="display:none">
@@ -210,20 +209,10 @@ body::before { content: ''; position: fixed; inset: 0; z-index: 0; background-im
       <button class="tool-btn" onclick="nudgeActiveHandle(5)">+5s</button>
     </div>
 
-    <div class="tool-grid two" id="clipModeGrid" style="display:none">
-      <button class="tool-btn" onclick="createClipAroundCurrent(10)">10s around current</button>
-      <button class="tool-btn" onclick="createClipAroundCurrent(20)">20s around current</button>
-      <button class="tool-btn" onclick="createClipAroundCurrent(30)">30s around current</button>
+    <div class="tool-grid three" id="clipModeGrid" style="display:none">
+      <button class="tool-btn" onclick="createClipAroundCurrent(10)">10s clip</button>
+      <button class="tool-btn" onclick="createClipAroundCurrent(20)">20s clip</button>
       <button class="tool-btn" onclick="jumpToLateWindow(300)">Last 5 mins</button>
-    </div>
-
-    <div class="tool-grid three" id="presetGrid" style="display:none">
-      <button class="tool-btn" onclick="applyMomentPreset('goal')">Goal</button>
-      <button class="tool-btn" onclick="applyMomentPreset('assist')">Assist</button>
-      <button class="tool-btn" onclick="applyMomentPreset('skill')">Skill</button>
-      <button class="tool-btn" onclick="applyMomentPreset('save')">Save</button>
-      <button class="tool-btn" onclick="applyMomentPreset('foul')">Foul</button>
-      <button class="tool-btn" onclick="applyMomentPreset('funny')">Funny</button>
     </div>
 
     <div class="timeline-section" id="timelineSection" style="display:none">
@@ -412,7 +401,9 @@ function seekPreview(seconds) {
   } catch (e) {}
 }
 
-function updatePlayerBadge() { document.getElementById('playerTimeBadge').textContent = 'Current: ' + fmt(currentPlayerSec); }
+function updatePlayerBadge() {
+  document.getElementById('playerTimeBadge').textContent = 'Current: ' + fmt(currentPlayerSec);
+}
 
 function startPlayerPolling() {
   if (playerPollTimer) clearInterval(playerPollTimer);
@@ -455,7 +446,9 @@ async function loadVideo() {
         onStateChange: () => { try { currentPlayerSec = ytPlayer.getCurrentTime() || currentPlayerSec; updatePlayerBadge(); updatePlayhead(currentPlayerSec); } catch (e) {} }
       }
     });
-  } catch (e) { showToast('Could not load YouTube player'); }
+  } catch (e) {
+    showToast('Could not load YouTube player');
+  }
 
   const btn = document.getElementById('loadBtn');
   btn.textContent = '...';
@@ -476,7 +469,6 @@ async function loadVideo() {
       document.getElementById('playerTools').style.display = '';
       document.getElementById('nudgeGrid').style.display = '';
       document.getElementById('clipModeGrid').style.display = '';
-      document.getElementById('presetGrid').style.display = '';
       currentPlayerSec = 0;
       setActiveHandle('start');
       updateUI();
@@ -581,6 +573,7 @@ tlOuter.addEventListener('mousedown', (e) => { if (tlSel.contains(e.target)) ret
 tlOuter.addEventListener('touchstart', (e) => { if (tlSel.contains(e.target)) return; const touch = e.touches && e.touches[0]; if (!touch) return; e.preventDefault(); moveNearestHandleTo(touch.clientX); }, { passive:false });
 
 function showPreviewAt(which, sec) {
+  if (storyboardState.mode !== 'storyboard' || !storyboardState.source) { hidePreview(); return; }
   const outerW = tlOuter.offsetWidth || 1;
   const leftPx = ((which === 'end' ? endSec : startSec) / Math.max(1, totalDuration)) * outerW;
   tlPreviewPop.style.left = leftPx + 'px';
@@ -593,21 +586,16 @@ function showPreviewAt(which, sec) {
 function hidePreview() { tlPreviewPop.classList.remove('show'); }
 
 function buildPreviewNode(sec) {
-  if (storyboardState.mode === 'storyboard' && storyboardState.source) {
-    const frameIndex = storyboardFrameIndexFromSec(sec);
-    const canvas = document.createElement('canvas');
-    canvas.width = 220;
-    canvas.height = 124;
-    const ctx = canvas.getContext('2d');
-    const sx = (frameIndex % storyboardState.cols) * storyboardState.frameW;
-    const sy = Math.floor(frameIndex / storyboardState.cols) * storyboardState.frameH;
-    ctx.drawImage(storyboardState.source, sx, sy, storyboardState.frameW, storyboardState.frameH, 0, 0, canvas.width, canvas.height);
-    return canvas;
-  }
-  const img = document.createElement('img');
-  img.src = storyboardFallbackThumbUrl(sec);
-  img.alt = '';
-  return img;
+  if (storyboardState.mode !== 'storyboard' || !storyboardState.source) return null;
+  const frameIndex = storyboardFrameIndexFromSec(sec);
+  const canvas = document.createElement('canvas');
+  canvas.width = 220;
+  canvas.height = 124;
+  const ctx = canvas.getContext('2d');
+  const sx = (frameIndex % storyboardState.cols) * storyboardState.frameW;
+  const sy = Math.floor(frameIndex / storyboardState.cols) * storyboardState.frameH;
+  ctx.drawImage(storyboardState.source, sx, sy, storyboardState.frameW, storyboardState.frameH, 0, 0, canvas.width, canvas.height);
+  return canvas;
 }
 
 function storyboardFrameIndexFromSec(sec) {
@@ -630,9 +618,17 @@ function storyboardFallbackThumbUrl(sec) {
 
 function setBoundaryFromPlayer(which) {
   const sec = Math.round(currentPlayerSec || 0);
-  if (which === 'start') { setActiveHandle('start'); startSec = Math.max(0, Math.min(sec, endSec - 1)); showPreviewAt('start', startSec); }
-  else { setActiveHandle('end'); endSec = Math.min(totalDuration, Math.max(sec, startSec + 1)); showPreviewAt('end', endSec); }
-  clampSelection(); updateUI();
+  if (which === 'start') {
+    setActiveHandle('start');
+    startSec = Math.max(0, Math.min(sec, endSec - 1));
+    showPreviewAt('start', startSec);
+  } else {
+    setActiveHandle('end');
+    endSec = Math.min(totalDuration, Math.max(sec, startSec + 1));
+    showPreviewAt('end', endSec);
+  }
+  clampSelection();
+  updateUI();
 }
 
 function nudgeActiveHandle(delta) {
@@ -649,18 +645,26 @@ function setRangeAround(centerSec, beforeSec, afterSec) {
   startSec = Math.max(0, Math.round(centerSec - beforeSec));
   endSec = Math.min(totalDuration, Math.round(centerSec + afterSec));
   if (endSec <= startSec) endSec = Math.min(totalDuration, startSec + 1);
-  clampSelection(); updateUI(); setActiveHandle('start'); showPreviewAt('start', startSec);
+  clampSelection();
+  updateUI();
+  setActiveHandle('start');
+  showPreviewAt('start', startSec);
 }
 
-function createClipAroundCurrent(totalSecs) { const half = totalSecs / 2; setRangeAround(currentPlayerSec || 0, half, half); seekPreview(startSec); }
-function jumpToLateWindow(windowSecs) { startSec = Math.max(0, totalDuration - windowSecs); endSec = totalDuration; clampSelection(); updateUI(); setActiveHandle('start'); seekPreview(startSec); showPreviewAt('start', startSec); }
-
-function applyMomentPreset(kind) {
-  const presets = { goal:{before:8,after:6,name:'Goal'}, assist:{before:10,after:5,name:'Assist'}, skill:{before:5,after:4,name:'Skill'}, save:{before:6,after:5,name:'Save'}, foul:{before:7,after:5,name:'Foul'}, funny:{before:6,after:6,name:'Funny moment'} };
-  const preset = presets[kind]; if (!preset) return;
-  setRangeAround(currentPlayerSec || 0, preset.before, preset.after);
-  if (!document.getElementById('nameInput').value.trim()) document.getElementById('nameInput').value = `${preset.name} ${fmt(startSec)}-${fmt(endSec)}`;
+function createClipAroundCurrent(totalSecs) {
+  const half = totalSecs / 2;
+  setRangeAround(currentPlayerSec || 0, half, half);
   seekPreview(startSec);
+}
+
+function jumpToLateWindow(windowSecs) {
+  startSec = Math.max(0, totalDuration - windowSecs);
+  endSec = totalDuration;
+  clampSelection();
+  updateUI();
+  setActiveHandle('start');
+  seekPreview(startSec);
+  showPreviewAt('start', startSec);
 }
 
 function bindDrag(handleEl, which) {
@@ -690,7 +694,9 @@ bindDrag(edgeRight, 'right');
     dragging = true; tlSel.classList.add('dragging');
     const cx = e.touches ? e.touches[0].clientX : e.clientX;
     dragOffset = cx - tlSel.getBoundingClientRect().left;
-    setActiveHandle('start'); showPreviewAt('start', startSec); e.preventDefault();
+    setActiveHandle('start');
+    showPreviewAt('start', startSec);
+    e.preventDefault();
   };
   const m = (e) => {
     if (!dragging) return;
@@ -817,13 +823,18 @@ function onManualTime() {
   else { setActiveHandle('start'); seekPreview(startSec); showPreviewAt('start', startSec); }
 }
 
-document.getElementById('urlInput').addEventListener('paste', () => { setTimeout(() => { const v = document.getElementById('urlInput').value.trim(); if (v.includes('youtube.com') || v.includes('youtu.be')) loadVideo(); }, 80); });
+document.getElementById('urlInput').addEventListener('paste', () => {
+  setTimeout(() => {
+    const v = document.getElementById('urlInput').value.trim();
+    if (v.includes('youtube.com') || v.includes('youtu.be')) loadVideo();
+  }, 80);
+});
 
 function capturePreviewForJob(sec) {
+  if (storyboardState.mode !== 'storyboard') return '';
   const node = buildPreviewNode(sec);
   if (!node) return '';
-  if (node.tagName === 'CANVAS') return node.toDataURL('image/jpeg', 0.82);
-  return node.src || '';
+  return node.toDataURL('image/jpeg', 0.82);
 }
 
 async function addJob() {
@@ -845,7 +856,9 @@ async function addJob() {
     const d = await r.json();
     if (!d.ok) throw new Error(d.error);
     pollJob(jobId);
-  } catch (e) { updateJob(jobId, 'error', 'Failed: ' + e.message, null, ''); }
+  } catch (e) {
+    updateJob(jobId, 'error', 'Failed: ' + e.message, null, '');
+  }
 }
 
 function renderJob(jobId, name, quality, status, statusText, previewSrc) {
