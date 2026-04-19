@@ -58,25 +58,27 @@ body::before { content: ''; position: fixed; inset: 0; z-index: 0; background-im
 .player-wrap iframe { width: 100%; height: 100%; border: none; display: none; }
 .player-placeholder { color: var(--muted); font-size: 12px; text-align: center; padding: 2rem; }
 .player-tools { display: flex; gap: 8px; align-items: center; margin-top: 12px; flex-wrap: wrap; }
-.player-time-badge { font-size: 11px; color: var(--accent); background: rgba(200,241,53,.08); border: 1px solid rgba(200,241,53,.15); border-radius: 999px; padding: 7px 10px; }
-.light .player-time-badge { background: rgba(90,158,0,.08); border-color: rgba(90,158,0,.2); }
+.player-time-badge, .share-badge { font-size: 11px; color: var(--accent); background: rgba(200,241,53,.08); border: 1px solid rgba(200,241,53,.15); border-radius: 999px; padding: 7px 10px; }
+.light .player-time-badge, .light .share-badge { background: rgba(90,158,0,.08); border-color: rgba(90,158,0,.2); }
 .tool-btn { background: var(--bg); border: 1px solid var(--border); border-radius: 8px; color: var(--text); font-family: 'DM Mono', monospace; font-size: 11px; padding: 9px 10px; cursor: pointer; transition: all .15s; -webkit-tap-highlight-color: transparent; }
 .tool-btn:hover { border-color: var(--accent); color: var(--accent); }
 .tool-btn:active { transform: scale(.98); }
-.tool-btn.on { background: rgba(200,241,53,.1); border-color: var(--accent); color: var(--accent); }
-.light .tool-btn.on { background: rgba(90,158,0,.08); }
+.tool-btn.primary { background: rgba(200,241,53,.1); border-color: var(--accent); color: var(--accent); }
+.light .tool-btn.primary { background: rgba(90,158,0,.08); }
 .tool-grid { display: grid; grid-template-columns: repeat(4, minmax(0,1fr)); gap: 8px; margin-top: 12px; }
 .tool-grid.three { grid-template-columns: repeat(3, minmax(0,1fr)); }
+.share-card { display: none; margin-top: 14px; background: var(--bg); border: 1px solid var(--border); border-radius: 10px; padding: 12px; }
+.share-card.show { display: block; }
+.share-row { display: flex; align-items: center; justify-content: space-between; gap: 8px; margin-bottom: 8px; }
+.share-row:last-child { margin-bottom: 0; }
+.share-label { font-size: 10px; color: var(--muted); text-transform: uppercase; letter-spacing: .08em; }
+.share-value { font-size: 12px; color: var(--text); word-break: break-all; }
 .timeline-section { margin-top: 16px; }
-.tl-labels { display: flex; justify-content: space-between; font-size: 10px; color: var(--muted); margin-bottom: 28px; }
-.tl-outer { position: relative; width: 100%; overflow: visible; border-radius: 6px; background: var(--border); touch-action: none; user-select: none; }
+.tl-labels { display: flex; justify-content: space-between; font-size: 10px; color: var(--muted); margin-bottom: 6px; }
+.tl-outer { position: relative; width: 100%; overflow: hidden; border-radius: 6px; background: var(--border); touch-action: none; user-select: none; }
 .tl-strip { display: flex; height: 56px; position: relative; width: 100%; overflow: hidden; border-radius: 6px; }
 .tl-strip img, .tl-strip canvas { height: 100%; display: block; flex-shrink: 0; pointer-events: none; -webkit-user-drag: none; }
 .tl-strip-placeholder { width: 100%; height: 56px; background: var(--border); display: flex; align-items: center; justify-content: center; font-size: 11px; color: var(--muted); }
-.tl-preview-pop { position: absolute; top: -86px; width: 110px; height: 62px; border-radius: 8px; overflow: hidden; border: 1px solid var(--accent); background: #111; z-index: 6; transform: translateX(-50%); box-shadow: 0 10px 24px rgba(0,0,0,.35); display: none; pointer-events: none; }
-.tl-preview-pop.show { display: block; }
-.tl-preview-pop canvas, .tl-preview-pop img { width: 100%; height: 100%; display: block; object-fit: cover; }
-.tl-preview-time { position: absolute; bottom: 4px; right: 4px; font-size: 10px; line-height: 1; background: rgba(0,0,0,.72); color: #fff; border-radius: 999px; padding: 4px 6px; }
 .tl-playhead { position: absolute; top: 0; bottom: 0; width: 2px; background: rgba(245,245,245,.72); z-index: 4; transform: translateX(-50%); pointer-events: none; box-shadow: 0 0 0 1px rgba(0,0,0,.15); }
 .light .tl-playhead { background: rgba(17,17,17,.55); }
 .tl-playhead::before { content: ''; position: absolute; top: -4px; left: 50%; width: 8px; height: 8px; border-radius: 50%; background: currentColor; transform: translateX(-50%); }
@@ -85,7 +87,7 @@ body::before { content: ''; position: fixed; inset: 0; z-index: 0; background-im
 .tl-dim-right { right: 0; }
 .tl-sel { position: absolute; top: 0; bottom: 0; z-index: 2; border-top: 3px solid var(--accent); border-bottom: 3px solid var(--accent); cursor: grab; touch-action: none; }
 .tl-sel:active { cursor: grabbing; }
-.tl-sel-time { position: absolute; top: -20px; left: 50%; transform: translateX(-50%); font-size: 10px; font-family: 'DM Mono', monospace; color: var(--accent); white-space: nowrap; pointer-events: none; opacity: 1; transition: opacity .15s; }
+.tl-sel-time { position: absolute; top: -20px; left: 50%; transform: translateX(-50%); font-size: 10px; font-family: 'DM Mono', monospace; color: var(--accent); white-space: nowrap; pointer-events: none; opacity: 1; }
 .tl-sel.dragging { box-shadow: 0 0 12px rgba(200,241,53,.3); }
 .light .tl-sel.dragging { box-shadow: 0 0 12px rgba(90,158,0,.3); }
 .tl-edge { position: absolute; top: 0; bottom: 0; width: 16px; z-index: 3; background: var(--accent); cursor: ew-resize; display: flex; align-items: center; justify-content: center; -webkit-tap-highlight-color: transparent; touch-action: none; transition: transform .12s, box-shadow .12s; }
@@ -170,7 +172,10 @@ body::before { content: ''; position: fixed; inset: 0; z-index: 0; background-im
 @keyframes fadeUp { from { opacity:0; transform:translateY(8px); } to { opacity:1; transform:translateY(0); } }
 @keyframes pulse { 0%,100% { opacity:1; } 50% { opacity:.3; } }
 @keyframes barslide { 0% { margin-left:0; width:35%; } 50% { margin-left:65%; } 100% { margin-left:0; } }
-@media (max-width: 540px) { .tool-grid, .tool-grid.three { grid-template-columns: repeat(2, minmax(0,1fr)); } .player-tools { display: grid; grid-template-columns: 1fr 1fr; } }
+@media (max-width: 540px) {
+  .tool-grid, .tool-grid.three { grid-template-columns: repeat(2, minmax(0,1fr)); }
+  .player-tools { display: grid; grid-template-columns: 1fr 1fr; }
+}
 </style>
 </head>
 <body>
@@ -188,7 +193,7 @@ body::before { content: ''; position: fixed; inset: 0; z-index: 0; background-im
       <input type="text" id="urlInput" placeholder="Paste YouTube URL..." autocomplete="off" spellcheck="false">
       <button class="btn" id="loadBtn" onclick="loadVideo()">Load</button>
     </div>
-    <p class="hint">Paste any YouTube video URL and click Load</p>
+    <p class="hint">Paste any YouTube URL and use timestamps to mark your clip</p>
 
     <div class="player-wrap">
       <iframe id="playerFrame" allowfullscreen allow="accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture"></iframe>
@@ -197,8 +202,8 @@ body::before { content: ''; position: fixed; inset: 0; z-index: 0; background-im
 
     <div class="player-tools" id="playerTools" style="display:none">
       <span class="player-time-badge" id="playerTimeBadge">Current: 0:00</span>
-      <button class="tool-btn" onclick="setBoundaryFromPlayer('start')">Set Start</button>
-      <button class="tool-btn" onclick="setBoundaryFromPlayer('end')">Set End</button>
+      <button class="tool-btn primary" onclick="setBoundaryFromPlayer('start')">Set Start</button>
+      <button class="tool-btn primary" onclick="setBoundaryFromPlayer('end')">Set End</button>
       <button class="tool-btn" onclick="createClipAroundCurrent(15)">15s clip</button>
     </div>
 
@@ -215,16 +220,24 @@ body::before { content: ''; position: fixed; inset: 0; z-index: 0; background-im
       <button class="tool-btn" onclick="jumpToLateWindow(300)">Last 5 mins</button>
     </div>
 
+    <div class="tool-grid three" id="shareGrid" style="display:none">
+      <button class="tool-btn" onclick="copyTimestampLink()">Copy start link</button>
+      <button class="tool-btn" onclick="copyClipRange()">Copy range</button>
+      <button class="tool-btn" onclick="toggleShareCard()">View share text</button>
+    </div>
+
+    <div class="share-card" id="shareCard">
+      <div class="share-row"><span class="share-label">Start</span><span class="share-value" id="shareStart">0:00</span></div>
+      <div class="share-row"><span class="share-label">End</span><span class="share-value" id="shareEnd">0:10</span></div>
+      <div class="share-row"><span class="share-label">Link</span><span class="share-value" id="shareLink">-</span></div>
+    </div>
+
     <div class="timeline-section" id="timelineSection" style="display:none">
       <div class="tl-labels">
         <span id="tlStart">0:00</span>
         <span id="tlTotal">0:00</span>
       </div>
       <div class="tl-outer" id="tlOuter">
-        <div class="tl-preview-pop" id="tlPreviewPop">
-          <div id="tlPreviewFrame"></div>
-          <span class="tl-preview-time" id="tlPreviewTime">0:00</span>
-        </div>
         <div class="tl-strip" id="tlStrip">
           <div class="tl-strip-placeholder" id="tlPlaceholder">Loading thumbnails...</div>
         </div>
@@ -328,6 +341,7 @@ body::before { content: ''; position: fixed; inset: 0; z-index: 0; background-im
 <script>
 const API = '';
 let currentVideoId = '';
+let currentInputUrl = '';
 let totalDuration = 3000;
 let startSec = 0;
 let endSec = 10;
@@ -405,6 +419,50 @@ function updatePlayerBadge() {
   document.getElementById('playerTimeBadge').textContent = 'Current: ' + fmt(currentPlayerSec);
 }
 
+function buildStartTimestampLink() {
+  if (!currentVideoId) return '';
+  return `https://www.youtube.com/watch?v=${currentVideoId}&t=${Math.round(startSec)}s`;
+}
+
+function updateShareCard() {
+  document.getElementById('shareStart').textContent = fmt(startSec);
+  document.getElementById('shareEnd').textContent = fmt(endSec);
+  document.getElementById('shareLink').textContent = buildStartTimestampLink() || '-';
+}
+
+function toggleShareCard() {
+  const card = document.getElementById('shareCard');
+  card.classList.toggle('show');
+  updateShareCard();
+}
+
+async function copyText(text, successMsg) {
+  try {
+    await navigator.clipboard.writeText(text);
+    showToast(successMsg);
+  } catch (e) {
+    const ta = document.createElement('textarea');
+    ta.value = text;
+    document.body.appendChild(ta);
+    ta.select();
+    document.execCommand('copy');
+    document.body.removeChild(ta);
+    showToast(successMsg);
+  }
+}
+
+function copyTimestampLink() {
+  const link = buildStartTimestampLink();
+  if (!link) { showToast('Load a video first'); return; }
+  copyText(link, 'Start link copied');
+}
+
+function copyClipRange() {
+  if (!currentVideoId) { showToast('Load a video first'); return; }
+  const text = `Clip range\nStart: ${fmt(startSec)}\nEnd: ${fmt(endSec)}\nDuration: ${fmt(endSec - startSec)}\nLink: ${buildStartTimestampLink()}`;
+  copyText(text, 'Clip range copied');
+}
+
 function startPlayerPolling() {
   if (playerPollTimer) clearInterval(playerPollTimer);
   playerPollTimer = setInterval(() => {
@@ -430,6 +488,7 @@ async function loadVideo() {
   const vid = extractVideoId(url);
   if (!vid) { showToast('Could not find a YouTube video ID'); return; }
 
+  currentInputUrl = url;
   currentVideoId = vid;
   const frame = document.getElementById('playerFrame');
   frame.style.display = 'block';
@@ -469,9 +528,11 @@ async function loadVideo() {
       document.getElementById('playerTools').style.display = '';
       document.getElementById('nudgeGrid').style.display = '';
       document.getElementById('clipModeGrid').style.display = '';
+      document.getElementById('shareGrid').style.display = '';
       currentPlayerSec = 0;
       setActiveHandle('start');
       updateUI();
+      updateShareCard();
       await loadStoryboard(storyboardCache);
       seekPreview(0);
     }
@@ -486,9 +547,6 @@ const tlDimL = document.getElementById('tlDimLeft');
 const tlDimR = document.getElementById('tlDimRight');
 const edgeLeft = document.getElementById('edgeLeft');
 const edgeRight = document.getElementById('edgeRight');
-const tlPreviewPop = document.getElementById('tlPreviewPop');
-const tlPreviewFrame = document.getElementById('tlPreviewFrame');
-const tlPreviewTime = document.getElementById('tlPreviewTime');
 const tlPlayhead = document.getElementById('tlPlayhead');
 
 function setActiveHandle(which) {
@@ -524,6 +582,7 @@ function updateUI() {
   document.getElementById('tlTotal').textContent = fmt(totalDuration);
   renderTicks();
   updatePlayhead(currentPlayerSec);
+  updateShareCard();
 }
 
 function renderTicks() {
@@ -560,72 +619,25 @@ function moveNearestHandleTo(clientX) {
   if (startDist <= endDist) {
     setActiveHandle('start');
     startSec = Math.max(0, Math.min(sec, endSec - 1));
-    clampSelection(); updateUI(); seekPreview(startSec); showPreviewAt('start', startSec);
+    clampSelection(); updateUI(); seekPreview(startSec);
   } else {
     setActiveHandle('end');
     endSec = Math.min(totalDuration, Math.max(sec, startSec + 1));
-    clampSelection(); updateUI(); seekPreview(endSec); showPreviewAt('end', endSec);
+    clampSelection(); updateUI(); seekPreview(endSec);
   }
-  setTimeout(hidePreview, 900);
 }
 
 tlOuter.addEventListener('mousedown', (e) => { if (tlSel.contains(e.target)) return; moveNearestHandleTo(e.clientX); });
 tlOuter.addEventListener('touchstart', (e) => { if (tlSel.contains(e.target)) return; const touch = e.touches && e.touches[0]; if (!touch) return; e.preventDefault(); moveNearestHandleTo(touch.clientX); }, { passive:false });
-
-function showPreviewAt(which, sec) {
-  if (storyboardState.mode !== 'storyboard' || !storyboardState.source) { hidePreview(); return; }
-  const outerW = tlOuter.offsetWidth || 1;
-  const leftPx = ((which === 'end' ? endSec : startSec) / Math.max(1, totalDuration)) * outerW;
-  tlPreviewPop.style.left = leftPx + 'px';
-  tlPreviewTime.textContent = fmt(sec);
-  tlPreviewFrame.innerHTML = '';
-  const node = buildPreviewNode(sec);
-  if (node) tlPreviewFrame.appendChild(node);
-  tlPreviewPop.classList.add('show');
-}
-function hidePreview() { tlPreviewPop.classList.remove('show'); }
-
-function buildPreviewNode(sec) {
-  if (storyboardState.mode !== 'storyboard' || !storyboardState.source) return null;
-  const frameIndex = storyboardFrameIndexFromSec(sec);
-  const canvas = document.createElement('canvas');
-  canvas.width = 220;
-  canvas.height = 124;
-  const ctx = canvas.getContext('2d');
-  const sx = (frameIndex % storyboardState.cols) * storyboardState.frameW;
-  const sy = Math.floor(frameIndex / storyboardState.cols) * storyboardState.frameH;
-  ctx.drawImage(storyboardState.source, sx, sy, storyboardState.frameW, storyboardState.frameH, 0, 0, canvas.width, canvas.height);
-  return canvas;
-}
-
-function storyboardFrameIndexFromSec(sec) {
-  const count = Math.max(1, storyboardState.count || 1);
-  if (count === 1) return 0;
-  const ratio = Math.max(0, Math.min(1, sec / Math.max(1, totalDuration)));
-  return Math.min(count - 1, Math.round(ratio * (count - 1)));
-}
-
-function storyboardFallbackThumbUrl(sec) {
-  const rounded = Math.max(0, Math.round(sec));
-  const variants = [
-    `https://img.youtube.com/vi/${currentVideoId}/maxresdefault.jpg`,
-    `https://img.youtube.com/vi/${currentVideoId}/sddefault.jpg`,
-    `https://img.youtube.com/vi/${currentVideoId}/hqdefault.jpg`,
-    `https://img.youtube.com/vi/${currentVideoId}/mqdefault.jpg`
-  ];
-  return variants[rounded % variants.length];
-}
 
 function setBoundaryFromPlayer(which) {
   const sec = Math.round(currentPlayerSec || 0);
   if (which === 'start') {
     setActiveHandle('start');
     startSec = Math.max(0, Math.min(sec, endSec - 1));
-    showPreviewAt('start', startSec);
   } else {
     setActiveHandle('end');
     endSec = Math.min(totalDuration, Math.max(sec, startSec + 1));
-    showPreviewAt('end', endSec);
   }
   clampSelection();
   updateUI();
@@ -634,10 +646,10 @@ function setBoundaryFromPlayer(which) {
 function nudgeActiveHandle(delta) {
   if (activeHandle === 'end') {
     endSec = Math.min(totalDuration, Math.max(startSec + 1, endSec + delta));
-    clampSelection(); updateUI(); seekPreview(endSec); showPreviewAt('end', endSec);
+    clampSelection(); updateUI(); seekPreview(endSec);
   } else {
     startSec = Math.max(0, Math.min(endSec - 1, startSec + delta));
-    clampSelection(); updateUI(); seekPreview(startSec); showPreviewAt('start', startSec);
+    clampSelection(); updateUI(); seekPreview(startSec);
   }
 }
 
@@ -648,7 +660,6 @@ function setRangeAround(centerSec, beforeSec, afterSec) {
   clampSelection();
   updateUI();
   setActiveHandle('start');
-  showPreviewAt('start', startSec);
 }
 
 function createClipAroundCurrent(totalSecs) {
@@ -664,7 +675,6 @@ function jumpToLateWindow(windowSecs) {
   updateUI();
   setActiveHandle('start');
   seekPreview(startSec);
-  showPreviewAt('start', startSec);
 }
 
 function bindDrag(handleEl, which) {
@@ -673,10 +683,15 @@ function bindDrag(handleEl, which) {
   const move = (e) => {
     if (!dragging) return;
     const cx = e.touches ? e.touches[0].clientX : e.clientX;
-    if (which === 'left') { startSec = Math.max(0, Math.min(secFromX(cx), endSec - 1)); clampSelection(); updateUI(); seekPreview(startSec); showPreviewAt('start', startSec); }
-    else { endSec = Math.min(totalDuration, Math.max(secFromX(cx), startSec + 1)); clampSelection(); updateUI(); seekPreview(endSec); showPreviewAt('end', endSec); }
+    if (which === 'left') {
+      startSec = Math.max(0, Math.min(secFromX(cx), endSec - 1));
+      clampSelection(); updateUI(); seekPreview(startSec);
+    } else {
+      endSec = Math.min(totalDuration, Math.max(secFromX(cx), startSec + 1));
+      clampSelection(); updateUI(); seekPreview(endSec);
+    }
   };
-  const end = () => { dragging = false; tlSel.classList.remove('dragging'); hidePreview(); };
+  const end = () => { dragging = false; tlSel.classList.remove('dragging'); };
   handleEl.addEventListener('mousedown', start);
   handleEl.addEventListener('touchstart', start, { passive:false });
   document.addEventListener('mousemove', move);
@@ -695,7 +710,6 @@ bindDrag(edgeRight, 'right');
     const cx = e.touches ? e.touches[0].clientX : e.clientX;
     dragOffset = cx - tlSel.getBoundingClientRect().left;
     setActiveHandle('start');
-    showPreviewAt('start', startSec);
     e.preventDefault();
   };
   const m = (e) => {
@@ -706,9 +720,9 @@ bindDrag(edgeRight, 'right');
     const p = Math.max(0, Math.min(1 - dur / Math.max(1, totalDuration), (cx - dragOffset - rect.left) / Math.max(1, rect.width)));
     startSec = Math.round(p * totalDuration);
     endSec = startSec + dur;
-    clampSelection(); updateUI(); seekPreview(startSec); showPreviewAt('start', startSec);
+    clampSelection(); updateUI(); seekPreview(startSec);
   };
-  const end = () => { dragging = false; tlSel.classList.remove('dragging'); hidePreview(); };
+  const end = () => { dragging = false; tlSel.classList.remove('dragging'); };
   tlSel.addEventListener('mousedown', s);
   tlSel.addEventListener('touchstart', s, { passive:false });
   document.addEventListener('mousemove', m);
@@ -737,6 +751,17 @@ function renderFallbackStrip() {
     img.style.objectFit = 'cover';
     strip.appendChild(img);
   }
+}
+
+function storyboardFallbackThumbUrl(sec) {
+  const rounded = Math.max(0, Math.round(sec));
+  const variants = [
+    `https://img.youtube.com/vi/${currentVideoId}/maxresdefault.jpg`,
+    `https://img.youtube.com/vi/${currentVideoId}/sddefault.jpg`,
+    `https://img.youtube.com/vi/${currentVideoId}/hqdefault.jpg`,
+    `https://img.youtube.com/vi/${currentVideoId}/mqdefault.jpg`
+  ];
+  return variants[rounded % variants.length];
 }
 
 function configureStoryboardState(img, sb) {
@@ -819,8 +844,8 @@ function onManualTime() {
   if (endSec <= startSec) endSec = Math.min(totalDuration, startSec + 1);
   clampSelection(); updateUI();
   const activeId = document.activeElement ? document.activeElement.id : '';
-  if (activeId === 'endM' || activeId === 'endS') { setActiveHandle('end'); seekPreview(endSec); showPreviewAt('end', endSec); }
-  else { setActiveHandle('start'); seekPreview(startSec); showPreviewAt('start', startSec); }
+  if (activeId === 'endM' || activeId === 'endS') { setActiveHandle('end'); seekPreview(endSec); }
+  else { setActiveHandle('start'); seekPreview(startSec); }
 }
 
 document.getElementById('urlInput').addEventListener('paste', () => {
@@ -831,10 +856,17 @@ document.getElementById('urlInput').addEventListener('paste', () => {
 });
 
 function capturePreviewForJob(sec) {
-  if (storyboardState.mode !== 'storyboard') return '';
-  const node = buildPreviewNode(sec);
-  if (!node) return '';
-  return node.toDataURL('image/jpeg', 0.82);
+  if (storyboardState.mode !== 'storyboard' || !storyboardState.source) return '';
+  const ratio = Math.max(0, Math.min(1, sec / Math.max(1, totalDuration)));
+  const frameIndex = Math.min(storyboardState.count - 1, Math.round(ratio * Math.max(0, storyboardState.count - 1)));
+  const canvas = document.createElement('canvas');
+  canvas.width = 220;
+  canvas.height = 124;
+  const ctx = canvas.getContext('2d');
+  const sx = (frameIndex % storyboardState.cols) * storyboardState.frameW;
+  const sy = Math.floor(frameIndex / storyboardState.cols) * storyboardState.frameH;
+  ctx.drawImage(storyboardState.source, sx, sy, storyboardState.frameW, storyboardState.frameH, 0, 0, canvas.width, canvas.height);
+  return canvas.toDataURL('image/jpeg', 0.82);
 }
 
 async function addJob() {
@@ -920,7 +952,7 @@ function addToHistory(jobId, filename, jobMeta) { const history = JSON.parse(loc
 function renderHistory() { const list = document.getElementById('historyList'); const history = JSON.parse(localStorage.getItem('dlHistory') || '[]'); if (!history.length) { list.innerHTML = '<div class="history-empty">No downloads yet</div>'; return; } list.innerHTML = history.map(h => { const qLabel = h.quality ? h.quality + 'p' : ''; const time = new Date(h.time).toLocaleDateString('en-GB', { day:'numeric', month:'short', hour:'2-digit', minute:'2-digit' }); return `<div class="history-item"><div class="history-icon">🎬</div><div class="history-info"><div class="history-name">${h.filename}</div><div class="history-meta">${qLabel} · ${time}</div></div></div>`; }).join(''); }
 function clearHistory() { localStorage.removeItem('dlHistory'); renderHistory(); }
 function toggleLog(jobId) { const logEl = document.getElementById(`log-${jobId}`); logEl.classList.toggle('show'); if (logEl.classList.contains('show')) logEl.scrollTop = logEl.scrollHeight; }
-function copyLog(jobId) { const text = document.getElementById(`log-${jobId}`).textContent; navigator.clipboard.writeText(text).catch(() => { const ta = document.createElement('textarea'); ta.value = text; document.body.appendChild(ta); ta.select(); document.execCommand('copy'); document.body.removeChild(ta); }); showToast('Log copied'); }
+function copyLog(jobId) { const text = document.getElementById(`log-${jobId}`).textContent; copyText(text, 'Log copied'); }
 let toastTimer; function showToast(msg) { const t = document.getElementById('toast'); t.textContent = msg; t.classList.add('show'); clearTimeout(toastTimer); toastTimer = setTimeout(() => t.classList.remove('show'), 3000); }
 
 document.addEventListener('DOMContentLoaded', () => { if (localStorage.getItem('theme') === 'light') { document.body.classList.add('light'); document.getElementById('themeColor').content = '#f5f5f5'; document.querySelector('.theme-btn').textContent = '🌙'; } });
